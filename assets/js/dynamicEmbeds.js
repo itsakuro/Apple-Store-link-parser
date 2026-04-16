@@ -37,13 +37,14 @@ function AppleStoreOnlineParseURL(url) {
 
 function AppleStoreOnlineParseCommon(specSlug) {
     // MATCHES
-    const sizeMatch = specSlug.match(/(\d+(\.\d+)?)\-inch\-display/);
-    const storageMatch = specSlug.match(/(\d+)(gb|tb)/i);
+    const sizeMatch = specSlug.match(/(\d+(\.\d+)?)\-inch(?:-display)?/);
+    const storageMatch = specSlug.match(/(\d+)(gb|tb)-storage/i) || specSlug.match(/(\d+)(gb|tb)(?!-memory|-core|-storage)/i);
     const unifiedMemoryMatch = specSlug.match(/(\d+)(gb)-memory/i);
-    const chipMatch = specSlug.match(/apple-([a-z0-9\-]+)-chip/i);
+    const chipMatch = specSlug.match(/(?:apple-)?([a-z0-9\-]+)-chip/i);
     const cpuMatch = specSlug.match(/(\d+)-core-cpu/i);
     const gpuMatch = specSlug.match(/(\d+)-core-gpu/i);
     // const displayTypeMatch = ( standard-display / nano-texture-glass )
+    const baseMatch = specSlug.match(/\b(vesa-mount-adapter|stand)\b/i); // iMac
 
     const carrierPatterns = ["unlocked", "att", "verizon", "boost-mobile", "t-mobile"];
     const carrierMap = {
@@ -57,12 +58,18 @@ function AppleStoreOnlineParseCommon(specSlug) {
     let carrierSlug = carrierPatterns.find(c => specSlug.includes(c));
 
     let cleanedUp = specSlug
-        .replace(/(\d+(\.\d+)?)\-inch\-display/, '')
-        .replace(/(\d+)(gb|tb)/i, '')
+        // Mac + iPhone
+        .replace(/(\d+(\.\d+)?)\-inch(?:-display)?/, '')
+        .replace(/(\d+)(gb|tb)-storage/i, '')
+        .replace(/\d+(?:gb|tb)(?!-memory|-core)/i, '')
         .replace(/(\d+)(gb)-memory/i, '')
-        .replace(/apple-([a-z0-9\-]+)-chip/i, '')
+        .replace(/(?:apple-)?([a-z0-9\-]+)-chip/i, '')
         .replace(/(\d+)-core-cpu/i, '')
         .replace(/(\d+)-core-gpu/i, '')
+        .replace(/standard-display/, '')
+        .replace(/nano-texture-glass/, '')
+        .replace(/vesa-mount-adapter/, '')
+        .replace(/\bstand\b/, '')
         .replace(carrierSlug || '', '')
         .replace(/^-+|-+$/g, '');
     
@@ -79,6 +86,7 @@ function AppleStoreOnlineParseCommon(specSlug) {
             .replace(/\b\w/g, c => c.toUpperCase()) : "ERR_UNKNOWN",
         cpu: cpuMatch ? `${cpuMatch[1]} cores` : "ERR_UNKNOWN",
         gpu: gpuMatch ? `${gpuMatch[1]} cores` : "ERR_UNKNOWN",
+        base: baseMatch ? (baseMatch[1] === 'vesa-mount-adapter' ? 'VESA Mount Adapter' : 'Stand') : "ERR_UNKNOWN",
         
 
         // finish
@@ -134,7 +142,8 @@ function AppleStoreOnlineFormatData(data) {
                     { label: "Finish", value: data.finish },
                     { label: "Memory", value: data.unifiedMemory },
                     { label: "CPU", value: data.cpu },
-                    { label: "GPU", value: data.gpu }
+                    { label: "GPU", value: data.gpu },
+                    { label: "Base", value: data.base }
                 ].filter(f => f.value && f.value !== "ERR_UNKNOWN")
             };
         case "ipad":
@@ -201,6 +210,12 @@ BUY MAC
 
 MacBook Pro
 https://www.apple.com/shop/buy-mac/macbook-pro/14-inch-silver-standard-display-apple-m5-max-chip-18-core-cpu-40-core-gpu-128gb-memory-2tb-storage
+
+iMac
+https://www.apple.com/shop/buy-mac/imac/24-inch-purple-m4-chip-10-core-cpu-10-core-gpu-24gb-memory-512gb-storage-nano-texture-glass-vesa-mount-adapter
+
+MacBook Neo
+https://www.apple.com/shop/buy-mac/macbook-neo/citrus-512gb
 
 -------
 
