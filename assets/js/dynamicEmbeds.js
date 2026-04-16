@@ -36,17 +36,16 @@ function AppleStoreOnlineParseURL(url) {
 }
 
 function AppleStoreOnlineParseCommon(specSlug) {
+    // MATCHES
     const displayMatch = specSlug.match(/(\d+(\.\d+)?)\-inch\-display/);
     const storageMatch = specSlug.match(/(\d+)(gb|tb)/i);
+    const unifiedMemoryMatch = specSlug.match(/(\d+)(gb)-memory/i);
+    const chipMatch = specSlug.match(/apple-([a-z0-9\-]+)-chip/i);
+    const cpuMatch = specSlug.match(/(\d+)-core-cpu/i);
+    const gpuMatch = specSlug.match(/(\d+)-core-gpu/i);
+    // const displayTypeMatch = ( standard-display / nano-texture-glass )
 
-    const carrierPatterns = [
-        "unlocked",
-        "att",
-        "verizon",
-        "boost-mobile",
-        "t-mobile"
-    ];
-
+    const carrierPatterns = ["unlocked", "att", "verizon", "boost-mobile", "t-mobile"];
     const carrierMap = {
         "unlocked": "Unlocked",
         "att": "AT&T",
@@ -60,13 +59,23 @@ function AppleStoreOnlineParseCommon(specSlug) {
     let cleanedUp = specSlug
         .replace(/(\d+(\.\d+)?)\-inch\-display/, '')
         .replace(/(\d+)(gb|tb)/i, '')
+        .replace(/(\d+)(gb)-memory/i, '')
+        .replace(/apple-([a-z0-9\-]+)-chip/i, '')
+        .replace(/(\d+)-core-cpu/i, '')
+        .replace(/(\d+)-core-gpu/i, '')
         .replace(carrierSlug || '', '')
         .replace(/^-+|-+$/g, '');
     
     return {
+        // shared
         display: displayMatch ? `${displayMatch[1]} inches` : "ERR_UNKNOWN",
         storage: storageMatch ? `${storageMatch[1]}${storageMatch[2].toUpperCase()}` : "ERR_UNKNOWN",
         carrier: carrierSlug ? carrierMap[carrierSlug] : "ERR_UNKNOWN",
+
+        // Mac
+        memory: memoryMatch ? `${memoryMatch[1]}${memoryMatch[2].toUpperCase()}` : "ERR_UNKNOWN",
+
+        // finish
         finish: cleanedUp
             .split('-')
             .filter(Boolean)
@@ -79,11 +88,14 @@ function AppleStoreOnlineFormatModel(modelSlug, display) {
     let model = modelSlug
         .replace(/-/g, ' ')
         .replace(/\b\w/g, c => c.toUpperCase());
+
+    model = model
+        .replace("Iphone", "iPhone")
+        .replace("Macbook", "MacBook")
+        .replace("Imac", "iMac");
     
     // iPhone Pro Max
     if (model.includes("Iphone")) {
-        model = model.replace("Iphone", "iPhone");
-
         if (model.includes("Pro") && !model.includes("Max")) {
             if (display.includes("6.9")) {
                 model = model.replace("Pro", "Pro Max");
@@ -109,6 +121,7 @@ function AppleStoreOnlineFormatData(data) {
         case "mac":
             return {
                 title: data.model,
+                subtitle: data.chip !== "ERR_UNKNOWN" ? `with ${data.chip} chip` : null,
                 fields: [
                     { label: "Size", value: data.display },
                     { label: "Storage", value: data.storage },
@@ -130,7 +143,8 @@ function AppleStoreOnlineFormatData(data) {
                 fields: [
                     { label: "Size", value: data.display },
                     { label: "Storage", value: data.storage },
-                    { label: "Finish", value: data.finish }
+                    { label: "Finish", value: data.finish },
+                    { label: "Memory", value: data.memory }
                 ].filter(f => f.value && f.value !== "ERR_UNKNOWN")
             };
         default:
@@ -142,6 +156,7 @@ function AppleStoreOnlineRenderDynamicEmbed(data) {
 
     return `
         <h1>${card.title}</h1>
+        <h2>${card.subtitle ?? ''}</h2>
         <ul>
             ${card.fields.map(f => `<li><b>${f.label}:</b> ${f.value}</li>`).join('')}
         </ul>
