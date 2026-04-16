@@ -73,7 +73,7 @@ function AppleStoreOnlineParseCommon(specSlug) {
         carrier: carrierSlug ? carrierMap[carrierSlug] : "ERR_UNKNOWN",
 
         // Mac
-        memory: memoryMatch ? `${memoryMatch[1]}${memoryMatch[2].toUpperCase()}` : "ERR_UNKNOWN",
+        unifiedMemory: unifiedMemoryMatch ? `${unifiedMemoryMatch[1]}${unifiedMemoryMatch[2].toUpperCase()}` : "ERR_UNKNOWN",
 
         // finish
         finish: cleanedUp
@@ -144,7 +144,7 @@ function AppleStoreOnlineFormatData(data) {
                     { label: "Size", value: data.display },
                     { label: "Storage", value: data.storage },
                     { label: "Finish", value: data.finish },
-                    { label: "Memory", value: data.memory }
+                    { label: "Memory", value: data.unifiedMemory }
                 ].filter(f => f.value && f.value !== "ERR_UNKNOWN")
             };
         default:
