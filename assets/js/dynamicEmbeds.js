@@ -26,7 +26,7 @@ function AppleStoreOnlineParseURL(url) {
     const type = AppleStoreOnlineGetProductType(typeSlug);
 
     const base = AppleStoreOnlineParseCommon(specSlug);
-    const model = AppleStoreOnlineFormatModel(modelSlug, base.display);
+    const model = AppleStoreOnlineFormatModel(modelSlug, base.size);
 
     return {
         type,
@@ -37,7 +37,7 @@ function AppleStoreOnlineParseURL(url) {
 
 function AppleStoreOnlineParseCommon(specSlug) {
     // MATCHES
-    const displayMatch = specSlug.match(/(\d+(\.\d+)?)\-inch\-display/);
+    const sizeMatch = specSlug.match(/(\d+(\.\d+)?)\-inch\-display/);
     const storageMatch = specSlug.match(/(\d+)(gb|tb)/i);
     const unifiedMemoryMatch = specSlug.match(/(\d+)(gb)-memory/i);
     const chipMatch = specSlug.match(/apple-([a-z0-9\-]+)-chip/i);
@@ -68,12 +68,18 @@ function AppleStoreOnlineParseCommon(specSlug) {
     
     return {
         // shared
-        display: displayMatch ? `${displayMatch[1]} inches` : "ERR_UNKNOWN",
+        size: sizeMatch ? `${sizeMatch[1]} inches` : "ERR_UNKNOWN",
         storage: storageMatch ? `${storageMatch[1]}${storageMatch[2].toUpperCase()}` : "ERR_UNKNOWN",
         carrier: carrierSlug ? carrierMap[carrierSlug] : "ERR_UNKNOWN",
 
         // Mac
         unifiedMemory: unifiedMemoryMatch ? `${unifiedMemoryMatch[1]}${unifiedMemoryMatch[2].toUpperCase()}` : "ERR_UNKNOWN",
+        chip: chipMatch ? chipMatch[1]
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase()) : "ERR_UNKNOWN",
+        cpu: cpuMatch ? `${cpuMatch[1]} cores` : "ERR_UNKNOWN",
+        gpu: gpuMatch ? `${gpuMatch[1]} cores` : "ERR_UNKNOWN",
+        
 
         // finish
         finish: cleanedUp
@@ -84,7 +90,7 @@ function AppleStoreOnlineParseCommon(specSlug) {
     };
 }
 
-function AppleStoreOnlineFormatModel(modelSlug, display) {
+function AppleStoreOnlineFormatModel(modelSlug, size) {
     let model = modelSlug
         .replace(/-/g, ' ')
         .replace(/\b\w/g, c => c.toUpperCase());
@@ -97,7 +103,7 @@ function AppleStoreOnlineFormatModel(modelSlug, display) {
     // iPhone Pro Max
     if (model.includes("Iphone")) {
         if (model.includes("Pro") && !model.includes("Max")) {
-            if (display.includes("6.9")) {
+            if (size.includes("6.9")) {
                 model = model.replace("Pro", "Pro Max");
             }
         }
@@ -112,7 +118,7 @@ function AppleStoreOnlineFormatData(data) {
             return {
                 title: data.model,
                 fields: [
-                    { label: "Size", value: data.display },
+                    { label: "Size", value: data.size },
                     { label: "Storage", value: data.storage },
                     { label: "Finish", value: data.finish },
                     { label: "Carrier", value: data.carrier }
@@ -123,16 +129,19 @@ function AppleStoreOnlineFormatData(data) {
                 title: data.model,
                 subtitle: data.chip !== "ERR_UNKNOWN" ? `with ${data.chip} chip` : null,
                 fields: [
-                    { label: "Size", value: data.display },
+                    { label: "Size", value: data.size },
                     { label: "Storage", value: data.storage },
-                    { label: "Finish", value: data.finish }
+                    { label: "Finish", value: data.finish },
+                    { label: "Memory", value: data.unifiedMemory },
+                    { label: "CPU", value: data.cpu },
+                    { label: "GPU", value: data.gpu }
                 ].filter(f => f.value && f.value !== "ERR_UNKNOWN")
             };
         case "ipad":
             return {
                 title: data.model,
                 fields: [
-                    { label: "Size", value: data.display },
+                    { label: "Size", value: data.size },
                     { label: "Storage", value: data.storage },
                     { label: "Finish", value: data.finish }
                 ].filter(f => f.value && f.value !== "ERR_UNKNOWN")
@@ -141,10 +150,9 @@ function AppleStoreOnlineFormatData(data) {
             return {
                 title: data.model,
                 fields: [
-                    { label: "Size", value: data.display },
+                    { label: "Size", value: data.size },
                     { label: "Storage", value: data.storage },
                     { label: "Finish", value: data.finish },
-                    { label: "Memory", value: data.unifiedMemory }
                 ].filter(f => f.value && f.value !== "ERR_UNKNOWN")
             };
         default:
@@ -165,120 +173,6 @@ function AppleStoreOnlineRenderDynamicEmbed(data) {
     `;
 }
 
-// function parseAppleStoreEmbed(url) {
-//     const urlObject = new URL(url);
-//     const pieces = urlObject.pathname.split('/').filter(Boolean);
-
-//     const typeSlug = pieces.find(p => p.startsWith('buy-'));
-//     const modelSlug = pieces.find(p => p.startsWith('iphone-'));
-//     const specSlug = pieces[pieces.length - 1];
-
-//     // MODEL
-//         .replace('Iphone', 'iPhone');
-    
-//     // DISPLAY
-//     const display = displayMatch ? `${displayMatch[1]} inches` : "ERR_UNKNOWN";
-
-//     if (model.includes("Pro") && !model.includes("Max")) {
-//         if (display.includes("6.9")) {
-//             model = model.replace("Pro", "Pro Max");
-//         }
-//     }
-
-//     let carrier = "";
-
-//     if (carrierSlug) {
-//         carrier = carrierMap[carrierSlug] || carrierSlug
-//             .replace(/-/g, ' ')
-//             .replace(/\b\w/g, c => c.toUpperCase());
-//     }
-
-//     // FINISH
-
-//     return {
-//         model,
-//         display,
-//         storage,
-//         finish,
-//         carrier
-//     };
-// }
-
-// function parseAppleStoreEmbed(url) {
-//     const pieces = url.split('/');
-    
-//     // example URL: https://www.apple.com/shop/buy-iphone/iphone-17-pro/6.9-inch-display-1tb-cosmic-orange-unlocked
-//     // get type (buy-iphone), model (iphone-17-pro), and specs (6.9-inch-display-1tb-cosmic-orange-unlocked)
-//     const typeSlug = pieces[4];
-//     const modelSlug = pieces[5];
-//     const specSlug = pieces[6];
-
-//     // MODEL
-
-//     let model = modelSlug
-//         .replace("iphone-", "iPhone ")
-//         .replace(/-/g, " ");
-
-//     model = model.replace(/\b\w/g, c => c.toUpperCase());
-
-//     if (model.includes("Pro") && specSlug.includes("6.9-inch-display")) {
-//         model = model.replace("Pro", "Pro Max");
-//     }
-
-//     // SPECS
-    
-//     const specPieces = specSlug.split('-');
-
-//     let display = "";
-//     let storage = "";
-//     let finish = "";
-//     let carrier = "";
-
-//     // Display
-//     const displayMatch = specSlug.match(/(\d+(\.\d+)?)\-inch\-display/);
-//     if (displayMatch) {
-//         display = displayMatch[1] + " inches";
-//     }
-
-//     // Storage
-//     const storageMatch = specPieces.find(p => /\d+(gb|tb)/i.test(p));
-//     if (storageMatch) {
-//         storage = storageMatch.toUpperCase();
-//     }
-
-//     // Carrier
-//     const carriers = ["unlocked", "att", "verizon", "t-mobile", "boost-mobile"];
-//     const carrierMatch = carriers.find(c => specSlug.includes(c));
-
-//     if (carrierMatch) {
-//         carrier = carrierMatch
-//             .replace("-", " ")
-//             .replace(/\b\w/g, c => c.toUpperCase());
-//     }
-
-//     // Finish
-//     let finishPieces = [];
-
-//     let start = specPieces.indexOf(storageMatch) + 1;
-//     let end = carrierMatch ? specPieces.indexOf(carrierMatch.split('-')[0]) : specPieces.length;
-
-//     finishPieces = specPieces.slice(start, end);
-
-//     finish = finishPieces
-//         .join(" ")
-//         .replace(/\b\w/g, c => c.toUpperCase());
-
-//     return {
-//         typeSlug,
-//         specSlug,
-//         model,
-//         display,
-//         storage,
-//         finish,
-//         carrier
-//     };
-// }
-
 parseButton.addEventListener('click', () => {
     const url = inputURL.value;
 
@@ -286,12 +180,6 @@ parseButton.addEventListener('click', () => {
     const html = AppleStoreOnlineRenderDynamicEmbed(parsed);
 
     output.innerHTML = html;
-    // output.innerHTML = `<p><b>Apple Store Online</b></p>
-    // <p>Model: ${embedData.model}</p>
-    // <p>Display: ${embedData.display}</p>
-    // <p>Storage: ${embedData.storage}</p>
-    // <p>Finish: ${embedData.finish}</p>
-    // <p>Carrier: ${embedData.carrier}</p>`;
 })
 
 /*
@@ -304,11 +192,21 @@ https://www.apple.com/shop/buy-iphone/iphone-17/6.3-inch-display-512gb-lavender-
 iPhone 17 Pro Max
 https://www.apple.com/shop/buy-iphone/iphone-17-pro/6.9-inch-display-1tb-cosmic-orange-unlocked
 
+iPhone 16
+https://www.apple.com/shop/buy-iphone/iphone-16/6.7-inch-display-256gb-ultramarine-att
+
 -------
 
 BUY MAC
 
 MacBook Pro
 https://www.apple.com/shop/buy-mac/macbook-pro/14-inch-silver-standard-display-apple-m5-max-chip-18-core-cpu-40-core-gpu-128gb-memory-2tb-storage
+
+-------
+
+BUY WATCH
+
+Apple Watch Series 11
+https://www.apple.com/shop/buy-watch/apple-watch/46mm-cellular-jet-black-aluminum-neon-yellow-braided-solo-loop-size-6
 
 */
