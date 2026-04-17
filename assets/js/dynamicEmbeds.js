@@ -2,6 +2,11 @@ const inputURL = document.getElementById('inputURL');
 const parseButton = document.getElementById('parseButton');
 const output = document.getElementById('output');
 
+// Apple Store Online
+
+const STORAGE_REGEX = /(\d+)(gb|tb)(?!-memory|-core)(?:-storage)?/i;
+const UNIFIEDMEMORY_REGEX = /(\d+)gb-memory/i;
+
 function AppleStoreOnline_getProductType(typeSlug) {
     if (!typeSlug) return 'ERR_UNKNOWN';
 
@@ -35,7 +40,7 @@ function AppleStoreOnline_parseURL(url) {
     const parsers = {
         iphone: AppleStoreOnline_parseiPhone,
         mac: AppleStoreOnline_parseMac,
-        // ipad: AppleStoreOnline_parseiPad,
+        ipad: AppleStoreOnline_parseiPad,
         // watch: AppleStoreOnline_parseWatch
     };
 
@@ -94,8 +99,8 @@ function AppleStoreOnline_parseMac({ type, modelSlug, specSlug }) {
     const sizeMatch = AppleStoreOnline_extractMatch(specSlug, /(\d+(?:\.\d+)?)\-inch(?:-display)?/, m => `${m[1]} inches`);
     const size = sizeMatch ?? model === 'MacBook Neo' ? '13 inches' : null
 
-    const storage = AppleStoreOnline_extractMatch(specSlug, /(\d+)(gb|tb)(?!-memory|-core)(?:-storage)?/i, m => `${m[1]}${m[2].toUpperCase()}`);
-    const unifiedMemory = AppleStoreOnline_extractMatch(specSlug, /(\d+)gb-memory/i, m => `${m[1]}GB`);
+    const storage = AppleStoreOnline_extractMatch(specSlug, STORAGE_REGEX, m => `${m[1]}${m[2].toUpperCase()}`);
+    const unifiedMemory = AppleStoreOnline_extractMatch(specSlug, UNIFIEDMEMORY_REGEX, m => `${m[1]}GB`);
     const cpu = AppleStoreOnline_extractMatch(specSlug, /(\d+)-core-cpu/i, m => `${m[1]}-core CPU`);
     const gpu = AppleStoreOnline_extractMatch(specSlug, /(\d+)-core-gpu/i, m => `${m[1]}-core GPU`);
 
@@ -105,6 +110,7 @@ function AppleStoreOnline_parseMac({ type, modelSlug, specSlug }) {
         m => {
             if (m[1] === 'standard-display') return 'Standard';
             if (m[1] === 'nano-texture-glass') return 'Nano-texture';
+            return null;
         }
     )
 
@@ -171,10 +177,62 @@ function AppleStoreOnline_parseMac({ type, modelSlug, specSlug }) {
     }
 }
 
+function AppleStoreOnline_parseiPad({ type, modelSlug, specSlug }) {
+    const size = AppleStoreOnline_extractMatch(specSlug, /(\d+(?:\.\d+)?)\-inch(?:-display)?/, m => `${m[1]} inches`);
+    const storage = AppleStoreOnline_extractMatch(specSlug, STORAGE_REGEX, m => `${m[1]}${m[2].toUpperCase()}`);
+
+    const connectivity = AppleStoreOnline_extractMatch(
+        specSlug,
+        /\b(wifi-cellular|wifi)\b/i,
+        m => {
+            if (m[1] === 'wifi-cellular') return 'Cellular';
+            if (m[1] === 'wifi') return 'Wi-Fi';
+            return null;
+        }
+    )
+    
+    let model = AppleStoreOnline_formatModel(modelSlug);
+
+    const display = AppleStoreOnline_extractMatch(
+        specSlug,
+        /(standard-glass|nano-texture-glass)/i,
+        m => {
+            if (m[1] === 'standard-glass') return 'Standard';
+            if (m[1] === 'nano-texture-glass') return 'Nano-texture';
+            return null;
+        }
+    )
+
+    const finish = specSlug
+        .replace(/(\d+(?:\.\d+)?)\-inch(?:-display)?/, '')
+        .replace(STORAGE_REGEX, '')
+        .replace(/\bwifi-cellular\b/i, '')
+        .replace(/\bwifi\b/i, '')
+        .replace(/standard-glass/, '')
+        .replace(/nano-texture-glass/, '')
+        .replace(/^-+|-+$/g, '')
+        .split('-')
+        .filter(Boolean)
+        .join(' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+    
+    return {
+        type,
+        model,
+        size,
+        storage,
+        finish,
+        connectivity,
+        display
+    }
+}
+
 function AppleStoreOnline_formatMacBase(base) {
     switch (base) {
         case 'Tilt- and height-adjustable stand':
             return 'Tilt + Height';
+        case 'VESA Mount Adapter':
+            return 'VESA';
         default:
             return base;
     }
@@ -218,6 +276,19 @@ function AppleStoreOnline_formatData(data) {
                     { label: 'Memory', value: data.unifiedMemory },
                     { label: 'Base', value: AppleStoreOnline_formatMacBase(data.base) },
                     { label: 'Keyboard', value: data.topRightKey }
+                ].filter(f => f.value)
+            };
+        case 'ipad':
+            return {
+                title: data.model,
+                subtitle: null,
+                subtitle2: null,
+                fields: [
+                    { label: 'Size', value: data.size },
+                    { label: 'Display', value: data.display },
+                    { label: 'Storage', value: data.storage },
+                    { label: 'Finish', value: data.finish },
+                    { label: 'Connectivity', value: data.connectivity }
                 ].filter(f => f.value)
             };
         default:
